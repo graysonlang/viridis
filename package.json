@@ -1,0 +1,60 @@
+{
+  "name": "@graysonlang/viridis",
+  "version": "1.0.0",
+  "description": "The viridis colormap as a tiny dependency-free JavaScript library — perceptually uniform, colorblind-friendly color values for data visualization.",
+  "keywords": [
+    "viridis",
+    "colormap",
+    "color",
+    "colour",
+    "palette",
+    "matplotlib",
+    "sequential",
+    "perceptually-uniform",
+    "dataviz",
+    "visualization"
+  ],
+  "homepage": "https://github.com/graysonlang/viridis#readme",
+  "bugs": {
+    "url": "https://github.com/graysonlang/viridis/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/graysonlang/viridis.git"
+  },
+  "license": "CC0-1.0",
+  "author": "Grayson Lang",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/viridis.d.ts",
+      "default": "./src/viridis.js"
+    }
+  },
+  "main": "./src/viridis.js",
+  "types": "./src/viridis.d.ts",
+  "files": [
+    "src/viridis.js",
+    "src/viridis.d.ts"
+  ],
+  "scripts": {
+    "build": "node ./scripts/build.mjs --lint --minify",
+    "serve": "node ./scripts/build.mjs --lint --sourcemap --watch --serve --debug-port=9222",
+    "dev": "npm run serve -- --proxy --launch",
+    "vscode:build": "npm run build -- --vscode",
+    "vscode:debug": "npm run serve -- --vscode",
+    "lint": "eslint . --ignore-pattern 'www'",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@graysonlang/esp": "^1.6.3",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "d3-delaunay": "^6.0.4",
+    "esbuild": "^0.28.1",
+    "eslint": "^9.39.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false
+}

@@ -1,0 +1,122 @@
+{
+  "version": "2.0.0",
+  "presentation": {
+    "group": "build",
+    "panel": "dedicated",
+    "reveal": "always",
+    "clear": true
+  },
+  "tasks": [
+    {
+      "label": "build",
+      "type": "npm",
+      "script": "vscode:build",
+      "problemMatcher": [
+        {
+          "owner": "esbuild",
+          "source": "esbuild",
+          "applyTo": "allDocuments",
+          "fileLocation": ["relative", "${workspaceFolder}"],
+          "pattern": {
+            "regexp": "^>\\s+(.+):(\\d+):(\\d+):\\s+(error|warning):\\s+(.*)$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "message": 5
+          }
+        },
+        {
+          "owner": "eslint",
+          "source": "eslint",
+          "applyTo": "allDocuments",
+          "fileLocation": "absolute",
+          "pattern": [
+            {
+              "regexp": "^([^\\s].*)$",
+              "file": 1
+            },
+            {
+              "regexp": "^\\s+(\\d+):(\\d+)\\s+(error|warning|info)\\s+(.*?)(?:\\s{2,}(\\S+))?\\s*$",
+              "line": 1,
+              "column": 2,
+              "severity": 3,
+              "message": 4,
+              "code": 5,
+              "loop": true
+            }
+          ]
+        }
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "debug",
+      "type": "npm",
+      "script": "vscode:debug",
+      "isBackground": true,
+      "problemMatcher": [
+        {
+          "owner": "esbuild",
+          "source": "esbuild",
+          "applyTo": "allDocuments",
+          "fileLocation": ["relative", "${workspaceFolder}"],
+          "pattern": {
+            "regexp": "^>\\s+(.+):(\\d+):(\\d+):\\s+(error|warning):\\s+(.*)$",
+            "file": 1,
+            "line": 2,
+            "column": 3,
+            "severity": 4,
+            "message": 5
+          },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".",
+            "endsPattern": "^\\[esbuild-ready\\] https?://.+$"
+          }
+        },
+        {
+          "owner": "eslint",
+          "source": "eslint",
+          "applyTo": "allDocuments",
+          "fileLocation": "absolute",
+          "pattern": [
+            {
+              "regexp": "^([^\\s].*)$",
+              "file": 1
+            },
+            {
+              "regexp": "^\\s+(\\d+):(\\d+)\\s+(error|warning|info)\\s+(.*?)(?:\\s{2,}(\\S+))?\\s*$",
+              "line": 1,
+              "column": 2,
+              "severity": 3,
+              "message": 4,
+              "code": 5,
+              "loop": true
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".",
+            "endsPattern": "^\\[esbuild-ready\\] https?://.+$"
+          }
+        }
+      ],
+      "presentation": {
+        "close": true
+      }
+    },
+    {
+      "label": "Kill debug server",
+      "type": "shell",
+      "command": "pkill -TERM -f 'build.mjs.*--watch' || true",
+      "presentation": {
+        "reveal": "never",
+        "close": true
+      }
+    }
+  ]
+}

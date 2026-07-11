@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>@graysonlang/viridis — the viridis colormap in pure JavaScript</title>
+  <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgo=" />
+  <!-- Set the saved theme before first paint so there's no flash. -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('viridis-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { /* private mode, etc. */ }
+    })();
+  </script>
+  <style>
+    /* Light is the base; dark applies when the OS prefers it (unless the user
+       forced light) or when the user explicitly picks it. --shadow, --body and
+       the canvas-facing vars flip with it. main.js reads --tile/--ink/--muted
+       off :root so the animated tiles repaint in the active theme. */
+    :root {
+      --paper: #f6f4ef;
+      --tile: #fffefb;
+      --ink: #1b1a20;
+      --body: #4c4a43;
+      --muted: #78746a;
+      --hair: #e2dfd6;
+      --shadow: rgba(27, 26, 32, 0.28);
+      --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --paper: #141317;
+        --tile: #1b1a20;
+        --ink: #eceae4;
+        --body: #b8b5ad;
+        --muted: #86827a;
+        --hair: #2c2a32;
+        --shadow: rgba(0, 0, 0, 0.55);
+      }
+    }
+    :root[data-theme="dark"] {
+      --paper: #141317;
+      --tile: #1b1a20;
+      --ink: #eceae4;
+      --body: #b8b5ad;
+      --muted: #86827a;
+      --hair: #2c2a32;
+      --shadow: rgba(0, 0, 0, 0.55);
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--paper); }
+    body {
+      margin: 0 auto;
+      padding: 44px 32px 56px;
+      max-width: 1180px;
+      color: var(--ink);
+      font: 15px/1.55 system-ui, sans-serif;
+      transition: background-color 220ms ease, color 220ms ease;
+    }
+    a { color: inherit; text-decoration-color: #b7b2a4; text-underline-offset: 3px; }
+    a:hover { text-decoration-color: var(--ink); }
+
+    header { margin-bottom: 30px; }
+    h1 {
+      margin: 0;
+      font-family: Georgia, 'Times New Roman', serif;
+      font-weight: 400;
+      font-size: 64px;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+    }
+    h1 .grad {
+      background: linear-gradient(90deg, #440154, #46327e, #365c8d, #277f8e, #1fa187, #4ac16d, #a0da39, #d8e219);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .pkg {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--muted);
+      margin: 10px 0 0;
+    }
+    p.lede { color: var(--body); margin: 14px 0 0; }
+
+    /* Utility row above the header: repo + package links, a hairline divider,
+       then the theme toggle. All share the quiet .icon-btn style. */
+    .corner {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 2px;
+      margin-bottom: 8px;
+    }
+    .corner-div {
+      width: 1px;
+      height: 18px;
+      margin: 0 5px;
+      background: var(--hair);
+    }
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      cursor: pointer;
+      opacity: 0.55;
+      text-decoration: none;
+      transition: opacity 160ms ease, color 160ms ease,
+        background-color 160ms ease, border-color 160ms ease;
+    }
+    .icon-btn:hover {
+      opacity: 1;
+      color: var(--ink);
+      background: var(--tile);
+      border-color: var(--hair);
+    }
+    .icon-btn svg { width: 18px; height: 18px; display: block; }
+    /* Show the icon of the active theme; the selectors mirror the var cascade. */
+    #theme-toggle .moon { display: none; }
+    #theme-toggle .sun { display: block; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) #theme-toggle .sun { display: none; }
+      :root:not([data-theme="light"]) #theme-toggle .moon { display: block; }
+    }
+    :root[data-theme="dark"] #theme-toggle .sun { display: none; }
+    :root[data-theme="dark"] #theme-toggle .moon { display: block; }
+    :root[data-theme="light"] #theme-toggle .sun { display: block; }
+    :root[data-theme="light"] #theme-toggle .moon { display: none; }
+    .install {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 8px 14px;
+      font-family: var(--mono);
+      font-size: 13px;
+      background: var(--tile);
+      border: 1px solid var(--hair);
+      border-radius: 8px;
+      user-select: all;
+    }
+
+    #strip {
+      display: block;
+      width: 100%;
+      height: 14px;
+      margin: 26px 0 30px;
+      border-radius: 7px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+    figure.tile {
+      margin: 0;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--tile);
+      border: 1px solid var(--hair);
+      border-radius: 14px;
+      padding: 14px 14px 12px;
+      overflow: hidden;
+      transition: box-shadow 160ms ease, translate 160ms ease,
+        background-color 220ms ease, border-color 220ms ease;
+    }
+    figure.tile:hover {
+      box-shadow: 0 10px 28px -14px var(--shadow);
+      translate: 0 -2px;
+    }
+    figcaption { margin-bottom: 10px; }
+    figcaption b {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+    figcaption span {
+      display: block;
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+    .tile canvas {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      border-radius: 8px;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    footer {
+      margin-top: 34px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    footer code { font-family: var(--mono); color: var(--body); }
+  </style>
+  <script src="./main.js" type="module"></script>
+</head>
+<body>
+  <div class="corner">
+    <a class="icon-btn" href="https://github.com/graysonlang/viridis" aria-label="Source on GitHub" title="Source on GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.5 11.5 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+      </svg>
+    </a>
+    <a class="icon-btn" href="https://www.npmjs.com/package/@graysonlang/viridis" aria-label="Package on npm" title="Package on npm">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019-.009 13.836h-3.464l.01-10.382h-3.456L12.076 19.17H5.113z"/>
+      </svg>
+    </a>
+    <span class="corner-div" aria-hidden="true"></span>
+    <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle color theme" title="Toggle light / dark">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+      </svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
+  </div>
+
+  <header>
+    <h1><span class="grad">viridis</span></h1>
+    <p class="lede">The <a href="https://bids.github.io/colormap/">viridis</a> colormap is perceptually uniform, colorblind-friendly, and monotonically increasing in lightness — which is why it became the default way to color data.</p>
+    <p class="lede">This page demonstrates the <span class="pkg">@graysonlang/viridis</span> npm package — a tiny, dependency-free ES module.</p>
+    <code class="install">npm install @graysonlang/viridis</code>
+  </header>
+
+  <canvas id="strip" height="14"></canvas>
+
+  <main class="grid">
+    <figure class="tile" id="tile-ramp">
+      <figcaption>
+        <b>The colormap</b>
+        <span>Channel curves and lightness — hover to sample a value.</span>
+      </figcaption>
+      <canvas></canvas>
+    </figure>
+
+    <figure class="tile" id="tile-voronoi">
+      <figcaption>
+        <b>Voronoi relaxation</b>
+        <span>Cells colored by area, Lloyd-relaxing live — stir with the pointer, click to reseed.</span>
+      </figcaption>
+      <canvas></canvas>
+    </figure>
+
+    <figure class="tile" id="tile-field">
+      <figcaption>
+        <b>Scalar field</b>
+        <span>An interference field mapped through the ramp — the pointer drops a ripple.</span>
+      </figcaption>
+      <canvas></canvas>
+    </figure>
+
+    <figure class="tile" id="tile-ridge">
+      <figcaption>
+        <b>Ridgeline</b>
+        <span>Stacked noise series colored by row — the pointer raises the terrain.</span>
+      </figcaption>
+      <canvas></canvas>
+    </figure>
+
+    <figure class="tile" id="tile-tree">
+      <figcaption>
+        <b>Tree</b>
+        <span>A random tree relaxing under spring forces, colored by depth — click to regrow.</span>
+      </figcaption>
+      <canvas></canvas>
+    </figure>
+
+    <figure class="tile" id="tile-hist">
+      <figcaption>
+        <b>Distribution</b>
+        <span>Samples streaming into bins, colored by count — click for a new mixture.</span>
+      </figcaption>
+      <canvas></canvas>
+    </figure>
+  </main>
+
+  <footer>
+    <p>Colormap data by Stéfan van der Walt and Nathaniel Smith (matplotlib, CC0).</p>
+    <p>This page bundles <code>viridis.js</code> plus <code>d3-delaunay</code> for the Voronoi tile.</p>
+  </footer>
+</body>
+</html>

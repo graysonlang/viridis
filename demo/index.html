@@ -20,7 +20,7 @@
        the canvas-facing vars flip with it. main.js reads --tile/--ink/--muted
        off :root so the animated tiles repaint in the active theme. */
     :root {
-      --paper: #f6f4ef;
+      --paper: #faf9f6;
       --tile: #fffefb;
       --ink: #1b1a20;
       --body: #4c4a43;
@@ -155,6 +155,101 @@
       border-radius: 7px;
     }
 
+    /* Colormap picker — a custom dropdown on the title row, right-aligned,
+       its bottom sitting on the h1 baseline (the margin-bottom offsets the
+       descender). A native select can't render the gradient swatches, so the
+       menu is a listbox built by main.js from the library's registry. */
+    .masthead {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 8px 16px;
+    }
+    .picker {
+      position: relative;
+      margin-bottom: 11px;
+    }
+    #picker-btn {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      position: relative;
+      padding: 8px 32px 8px 11px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1;
+      color: var(--ink);
+      background: var(--tile);
+      border: 1px solid var(--hair);
+      border-radius: 9px;
+      cursor: pointer;
+      transition: border-color 160ms ease, background-color 220ms ease, color 220ms ease;
+    }
+    #picker-btn:hover { border-color: var(--muted); }
+    #picker-btn:focus-visible { outline: 1.5px solid var(--muted); outline-offset: 2px; }
+    /* The label is monospace, so main.js pins its min-width in ch to the
+       longest map name — the button doesn't resize while hover-previewing. */
+    #picker-btn span {
+      display: inline-block;
+      text-align: left;
+    }
+    #picker-btn::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      right: 13px;
+      width: 6px;
+      height: 6px;
+      margin-top: -5px;
+      border-right: 1.5px solid var(--muted);
+      border-bottom: 1.5px solid var(--muted);
+      transform: rotate(45deg);
+      pointer-events: none;
+    }
+    .picker i {
+      display: block;
+      flex: none;
+      width: 56px;
+      height: 8px;
+      border-radius: 4px;
+    }
+    #picker-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 10;
+      min-width: 100%;
+      padding: 5px;
+      background: var(--tile);
+      border: 1px solid var(--hair);
+      border-radius: 11px;
+      box-shadow: 0 14px 36px -14px var(--shadow);
+    }
+    #picker-menu hr {
+      margin: 5px 4px;
+      border: none;
+      border-top: 1px solid var(--hair);
+    }
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      padding: 7px 10px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1;
+      text-align: left;
+      color: var(--body);
+      background: transparent;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+    .option:hover { background: var(--paper); color: var(--ink); }
+    .option[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+
     .grid {
       display: grid;
       gap: 18px;
@@ -170,12 +265,7 @@
       border-radius: 14px;
       padding: 14px 14px 12px;
       overflow: hidden;
-      transition: box-shadow 160ms ease, translate 160ms ease,
-        background-color 220ms ease, border-color 220ms ease;
-    }
-    figure.tile:hover {
-      box-shadow: 0 10px 28px -14px var(--shadow);
-      translate: 0 -2px;
+      transition: background-color 220ms ease, border-color 220ms ease;
     }
     figcaption { margin-bottom: 10px; }
     figcaption b {
@@ -233,9 +323,17 @@
   </div>
 
   <header>
-    <h1><span class="grad">viridis</span></h1>
+    <div class="masthead">
+      <h1><span class="grad">viridis</span></h1>
+      <div class="picker">
+        <button type="button" id="picker-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Colormap">
+          <i aria-hidden="true"></i><span>viridis</span>
+        </button>
+        <div id="picker-menu" role="listbox" aria-label="Colormap" hidden></div>
+      </div>
+    </div>
     <p class="lede">The <a href="https://bids.github.io/colormap/">viridis</a> colormap is perceptually uniform, colorblind-friendly, and monotonically increasing in lightness — which is why it became the default way to color data.</p>
-    <p class="lede">This page demonstrates the <span class="pkg">@graysonlang/viridis</span> npm package — a tiny, dependency-free ES module.</p>
+    <p class="lede">This page demonstrates the <span class="pkg">@graysonlang/viridis</span> npm package — a tiny, dependency-free ES module bundling viridis and its siblings. Pick a colormap at the top right and every visualization follows.</p>
     <code class="install">npm install @graysonlang/viridis</code>
   </header>
 
@@ -292,7 +390,7 @@
   </main>
 
   <footer>
-    <p>Colormap data by Stéfan van der Walt and Nathaniel Smith (matplotlib, CC0).</p>
+    <p>Colormap data: the viridis family by Stéfan van der Walt and Nathaniel Smith (matplotlib, CC0); cividis by Nuñez, Anderton &amp; Renslow; turbo by Anton Mikhailov (Google); mako and rocket by Michael Waskom (seaborn).</p>
     <p>This page bundles <code>viridis.js</code> plus <code>d3-delaunay</code> for the Voronoi tile.</p>
   </footer>
 </body>

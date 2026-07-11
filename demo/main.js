@@ -7,7 +7,7 @@ export function getFilePaths() {
 
 // A real consumer would `import ... from '@graysonlang/viridis'`; the demo
 // imports the local source directly so it always tracks src/.
-import { viridis, rgb } from '../src/viridis.js';
+import { colormaps } from '../src/viridis.js';
 import { Delaunay } from 'd3-delaunay';
 
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -72,6 +72,122 @@ function setupTheme() {
     } catch { /* ignore */ }
     if (stored !== 'light' && stored !== 'dark') readTheme();
   });
+}
+
+// ---------------------------------------------------------------------------
+// Colormap — every visualization samples through `map`, which the picker
+// swaps at runtime. Tiles that cache colors (the ramp band, the field's LUT)
+// expose api.recolor() so a swap rebuilds them; everything else just picks up
+// the new map on its next frame.
+// ---------------------------------------------------------------------------
+
+let map = colormaps.viridis;
+
+// Menu order: the matplotlib viridis family, then the rest (turbo last, as
+// the one non-sequential map). Groups are separated by a divider.
+const MAP_GROUPS = [
+  ['viridis', 'magma', 'plasma', 'inferno'],
+  ['cividis', 'mako', 'rocket', 'turbo'],
+];
+
+function gradient(m) {
+  return `linear-gradient(90deg, ${m.palette(6).join(', ')})`;
+}
+
+function setColormap(name, save = true) {
+  map = colormaps[name] ?? colormaps.viridis;
+  if (save) {
+    try {
+      localStorage.setItem('viridis-colormap', map.name);
+    } catch { /* private mode, etc. */ }
+  }
+  const label = document.querySelector('#picker-btn span');
+  if (label) label.textContent = map.name;
+  const bar = document.querySelector('#picker-btn i');
+  if (bar) bar.style.background = gradient(map);
+  for (const opt of document.querySelectorAll('#picker-menu .option')) {
+    opt.setAttribute('aria-selected', String(opt.dataset.map === map.name));
+  }
+  const grad = document.querySelector('h1 .grad');
+  if (grad) grad.style.backgroundImage = `linear-gradient(90deg, ${map.palette(8).join(', ')})`;
+  paintStrip?.();
+  for (const tile of tiles) tile.api?.recolor?.();
+}
+
+function setupPicker() {
+  const btn = document.getElementById('picker-btn');
+  const menu = document.getElementById('picker-menu');
+
+  // Pin the trigger label to the longest map name so the button width stays
+  // constant while hover-previewing (the label is monospace, hence ch units).
+  const names = MAP_GROUPS.flat();
+  btn.querySelector('span').style.minWidth = `${Math.max(...names.map(n => n.length))}ch`;
+
+  // Hovering (or keyboard-focusing) an option previews it live; clicking
+  // commits it. Closing the menu any other way reverts to the map that was
+  // active when it opened.
+  let committed = null;
+
+  const close = (commit = false) => {
+    if (menu.hidden) return;
+    if (commit) {
+      committed = map.name;
+    } else if (committed && map.name !== committed) {
+      setColormap(committed, false);
+    }
+    menu.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+  };
+  const open = () => {
+    committed = map.name;
+    menu.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+  };
+
+  MAP_GROUPS.forEach((group, gi) => {
+    if (gi) menu.append(document.createElement('hr'));
+    for (const name of group) {
+      const opt = document.createElement('button');
+      opt.type = 'button';
+      opt.className = 'option';
+      opt.setAttribute('role', 'option');
+      opt.setAttribute('aria-selected', 'false');
+      opt.dataset.map = name;
+      const bar = document.createElement('i');
+      bar.setAttribute('aria-hidden', 'true');
+      bar.style.background = gradient(colormaps[name]);
+      const label = document.createElement('span');
+      label.textContent = name;
+      opt.append(bar, label);
+      opt.addEventListener('pointerenter', () => setColormap(name, false));
+      opt.addEventListener('focus', () => setColormap(name, false));
+      opt.addEventListener('click', () => {
+        setColormap(name);
+        close(true);
+        btn.focus();
+      });
+      menu.append(opt);
+    }
+  });
+
+  // Leaving the menu while it stays open drops back to the committed map.
+  menu.addEventListener('pointerleave', () => {
+    if (committed && map.name !== committed) setColormap(committed, false);
+  });
+
+  btn.addEventListener('click', () => (menu.hidden ? open() : close()));
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('.picker')) close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+  });
+
+  let stored = null;
+  try {
+    stored = localStorage.getItem('viridis-colormap');
+  } catch { /* ignore */ }
+  setColormap(stored, false);
 }
 
 // ---------------------------------------------------------------------------
@@ -167,6 +283,8 @@ function makeTile(id, setup) {
 // Header strip — the full ramp, painted per device pixel.
 // ---------------------------------------------------------------------------
 
+let paintStrip = null;
+
 function setupStrip() {
   const strip = document.getElementById('strip');
   const ctx = strip.getContext('2d');
@@ -178,10 +296,11 @@ function setupStrip() {
     strip.width = w;
     strip.height = h;
     for (let x = 0; x < w; x++) {
-      ctx.fillStyle = viridis(x / (w - 1));
+      ctx.fillStyle = map(x / (w - 1));
       ctx.fillRect(x, 0, 1, h);
     }
   };
+  paintStrip = paint;
   new ResizeObserver(paint).observe(strip);
 }
 
@@ -206,7 +325,7 @@ function setupRamp(t) {
     band.height = 1;
     const bctx = band.getContext('2d');
     for (let x = 0; x < band.width; x++) {
-      bctx.fillStyle = viridis(x / (band.width - 1));
+      bctx.fillStyle = map(x / (band.width - 1));
       bctx.fillRect(x, 0, 1, 1);
     }
   };
@@ -235,7 +354,7 @@ function setupRamp(t) {
     for (const s of series) {
       ctx.beginPath();
       for (let x = 0; x <= w; x += 2) {
-        const v = s.pick(rgb(x / w, sample));
+        const v = s.pick(map.rgb(x / w, sample));
         const y = plotBottom - v * plotH;
         x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
       }
@@ -255,7 +374,7 @@ function setupRamp(t) {
       tv = cycle < 1 ? cycle : 2 - cycle;
     }
     const cx = tv * w;
-    const c = rgb(tv);
+    const c = map.rgb(tv);
     ctx.strokeStyle = inkA(0.55);
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -270,7 +389,7 @@ function setupRamp(t) {
     }
 
     // Readout.
-    const hex = viridis(tv);
+    const hex = map(tv);
     ctx.fillStyle = hex;
     ctx.strokeStyle = inkA(0.2);
     ctx.beginPath();
@@ -287,7 +406,11 @@ function setupRamp(t) {
     );
   };
 
-  return { frame, resize };
+  const recolor = () => {
+    band = null;
+  };
+
+  return { frame, resize, recolor };
 }
 
 // ---------------------------------------------------------------------------
@@ -384,7 +507,7 @@ function setupVoronoi(t) {
       ctx.moveTo(cell.poly[0][0], cell.poly[0][1]);
       for (let j = 1; j < cell.poly.length; j++) ctx.lineTo(cell.poly[j][0], cell.poly[j][1]);
       ctx.closePath();
-      ctx.fillStyle = viridis((cell.area - minA) / span);
+      ctx.fillStyle = map((cell.area - minA) / span);
       ctx.fill();
       ctx.strokeStyle = theme.tile;
       ctx.lineWidth = 1.2;
@@ -414,13 +537,17 @@ function setupField(t) {
   const img = offCtx.createImageData(RES, RES);
   const px = new Uint32Array(img.data.buffer);
 
-  // 256-entry ABGR lookup so the inner loop is table math only.
+  // 256-entry ABGR lookup so the inner loop is table math only; rebuilt when
+  // the colormap changes.
   const lut = new Uint32Array(256);
-  const c = [0, 0, 0];
-  for (let i = 0; i < 256; i++) {
-    rgb(i / 255, c);
-    lut[i] = (255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0];
-  }
+  const buildLut = () => {
+    const c = [0, 0, 0];
+    for (let i = 0; i < 256; i++) {
+      map.rgb(i / 255, c);
+      lut[i] = (255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0];
+    }
+  };
+  buildLut();
 
   let freq = null;
   const reseed = () => {
@@ -469,7 +596,7 @@ function setupField(t) {
     ctx.drawImage(off, 0, 0, w, h);
   };
 
-  return { frame, click: reseed };
+  return { frame, click: reseed, recolor: buildLut };
 }
 
 // ---------------------------------------------------------------------------
@@ -517,7 +644,7 @@ function setupRidge(t) {
       }
       ctx.lineTo(w, baseline);
       ctx.closePath();
-      ctx.fillStyle = viridis(i / (ROWS - 1));
+      ctx.fillStyle = map(i / (ROWS - 1));
       ctx.strokeStyle = theme.tile;
       ctx.lineWidth = 1.6;
       ctx.fill();
@@ -635,14 +762,14 @@ function setupTree(t) {
       ctx.beginPath();
       ctx.moveTo(b.x, b.y);
       ctx.lineTo(a.x, a.y);
-      ctx.strokeStyle = viridis(a.depth / maxDepth);
+      ctx.strokeStyle = map(a.depth / maxDepth);
       ctx.lineWidth = Math.max(1, 3.5 - a.depth * 0.5);
       ctx.stroke();
     }
     for (const node of nodes) {
       ctx.beginPath();
       ctx.arc(node.x, node.y, Math.max(3, 8 - node.depth * 1.1), 0, Math.PI * 2);
-      ctx.fillStyle = viridis(node.depth / maxDepth);
+      ctx.fillStyle = map(node.depth / maxDepth);
       ctx.fill();
       ctx.strokeStyle = theme.tile;
       ctx.lineWidth = 1.5;
@@ -733,7 +860,7 @@ function setupHist(t) {
     for (let i = 0; i < BINS; i++) {
       const v = counts[i] / maxCount;
       const bh = v * plotH;
-      ctx.fillStyle = viridis(v);
+      ctx.fillStyle = map(v);
       ctx.fillRect(i * bw + 0.5, h - padBottom - bh, bw - 1, bh);
     }
 
@@ -780,6 +907,7 @@ makeTile('tile-field', setupField);
 makeTile('tile-ridge', setupRidge);
 makeTile('tile-tree', setupTree);
 makeTile('tile-hist', setupHist);
+setupPicker();
 
 let last = performance.now();
 function loop(now) {

@@ -27,8 +27,8 @@
           }
         },
         {
-          "owner": "eslint",
-          "source": "eslint",
+          "owner": "esp-lint",
+          "source": "lint",
           "applyTo": "allDocuments",
           "fileLocation": "absolute",
           "pattern": [
@@ -79,8 +79,8 @@
           }
         },
         {
-          "owner": "eslint",
-          "source": "eslint",
+          "owner": "esp-lint",
+          "source": "lint",
           "applyTo": "allDocuments",
           "fileLocation": "absolute",
           "pattern": [

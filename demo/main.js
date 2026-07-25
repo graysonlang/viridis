@@ -56,7 +56,9 @@ function applyTheme(mode) {
   document.documentElement.setAttribute('data-theme', mode);
   try {
     localStorage.setItem('viridis-theme', mode);
-  } catch { /* private mode, etc. */ }
+  } catch {
+    /* private mode, etc. */
+  }
   readTheme();
 }
 
@@ -69,7 +71,9 @@ function setupTheme() {
     let stored = null;
     try {
       stored = localStorage.getItem('viridis-theme');
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     if (stored !== 'light' && stored !== 'dark') readTheme();
   });
 }
@@ -99,7 +103,9 @@ function setColormap(name, save = true) {
   if (save) {
     try {
       localStorage.setItem('viridis-colormap', map.name);
-    } catch { /* private mode, etc. */ }
+    } catch {
+      /* private mode, etc. */
+    }
   }
   const label = document.querySelector('#picker-btn span');
   if (label) label.textContent = map.name;
@@ -176,17 +182,19 @@ function setupPicker() {
   });
 
   btn.addEventListener('click', () => (menu.hidden ? open() : close()));
-  document.addEventListener('pointerdown', (e) => {
+  document.addEventListener('pointerdown', e => {
     if (!e.target.closest('.picker')) close();
   });
-  document.addEventListener('keydown', (e) => {
+  document.addEventListener('keydown', e => {
     if (e.key === 'Escape') close();
   });
 
   let stored = null;
   try {
     stored = localStorage.getItem('viridis-colormap');
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   setColormap(stored, false);
 }
 
@@ -197,7 +205,7 @@ function setupPicker() {
 
 function mulberry32(seed) {
   let a = seed >>> 0;
-  return function () {
+  return () => {
     a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
@@ -213,7 +221,7 @@ function freshSeed() {
 // Smooth 1D value noise in [0, 1] with two octaves.
 function makeNoise(rng) {
   const vals = Float64Array.from({ length: 256 }, () => rng());
-  const base = (x) => {
+  const base = x => {
     const i = Math.floor(x);
     const f = x - i;
     const u = f * f * (3 - 2 * f);
@@ -225,7 +233,7 @@ function makeNoise(rng) {
 }
 
 function clamp01(v) {
-  return v < 0 ? 0 : (v > 1 ? 1 : v);
+  return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 
 // ---------------------------------------------------------------------------
@@ -236,7 +244,7 @@ function clamp01(v) {
 
 const tiles = [];
 
-const io = new IntersectionObserver((entries) => {
+const io = new IntersectionObserver(entries => {
   for (const entry of entries) {
     const t = tiles.find(t => t.fig === entry.target);
     if (t) t.visible = entry.isIntersecting;
@@ -262,14 +270,14 @@ function makeTile(id, setup) {
     t.api?.resize?.();
   }).observe(canvas);
 
-  canvas.addEventListener('pointermove', (e) => {
+  canvas.addEventListener('pointermove', e => {
     const r = canvas.getBoundingClientRect();
     t.pointer = { x: e.clientX - r.left, y: e.clientY - r.top };
   });
   canvas.addEventListener('pointerleave', () => {
     t.pointer = null;
   });
-  canvas.addEventListener('pointerdown', (e) => {
+  canvas.addEventListener('pointerdown', e => {
     const r = canvas.getBoundingClientRect();
     t.api?.click?.(e.clientX - r.left, e.clientY - r.top);
   });
@@ -313,8 +321,11 @@ function setupRamp(t) {
   const { ctx } = t;
   let band = null; // cached offscreen ramp band
 
-  const luminance = (c) => {
-    const lin = v => (v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  const luminance = c => {
+    const lin = v => {
+      const s = v / 255;
+      return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    };
     return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
   };
 
@@ -330,7 +341,7 @@ function setupRamp(t) {
     }
   };
 
-  const frame = (time) => {
+  const frame = time => {
     const { w, h } = t;
     ctx.clearRect(0, 0, w, h);
     if (!band) resize();
@@ -400,10 +411,7 @@ function setupRamp(t) {
     ctx.fillStyle = theme.ink;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
-    ctx.fillText(
-      `t = ${tv.toFixed(3)}   ${hex}   rgb(${c[0]}, ${c[1]}, ${c[2]})`,
-      34, h - 11,
-    );
+    ctx.fillText(`t = ${tv.toFixed(3)}   ${hex}   rgb(${c[0]}, ${c[1]}, ${c[2]})`, 34, h - 11);
   };
 
   const recolor = () => {
@@ -435,7 +443,7 @@ function setupVoronoi(t) {
     }
   };
 
-  const frame = (time) => {
+  const frame = time => {
     const { w, h } = t;
     if (!pts) {
       if (!w) return;
@@ -562,7 +570,7 @@ function setupField(t) {
   };
   reseed();
 
-  const frame = (time) => {
+  const frame = time => {
     const { w, h } = t;
     const { a, b, d, pa, pb } = freq;
 
@@ -577,10 +585,11 @@ function setupField(t) {
         const u = x / RES;
         const dx = u - ox;
         const dy = v - oy;
-        let s = Math.sin(u * a * 6.28 + time * 0.7 + pa)
-          + Math.sin(v * b * 6.28 - time * 0.53 + pb)
-          + Math.sin((u + v) * d * 6.28 + time * 0.31)
-          + Math.sin(Math.sqrt(dx * dx + dy * dy) * 22 - time * 1.3);
+        let s =
+          Math.sin(u * a * 6.28 + time * 0.7 + pa) +
+          Math.sin(v * b * 6.28 - time * 0.53 + pb) +
+          Math.sin((u + v) * d * 6.28 + time * 0.31) +
+          Math.sin(Math.sqrt(dx * dx + dy * dy) * 22 - time * 1.3);
         if (p) {
           const rx = u - p.x;
           const ry = v - p.y;
@@ -616,7 +625,7 @@ function setupRidge(t) {
   };
   reseed();
 
-  const frame = (time) => {
+  const frame = time => {
     const { w, h } = t;
     ctx.clearRect(0, 0, w, h);
 
@@ -675,9 +684,12 @@ function setupTree(t) {
     while (queue.length && nodes.length < MAX) {
       const pi = queue.shift();
       const depth = nodes[pi].depth + 1;
-      const kids = depth === 1
-        ? 3 + Math.floor(rng() * 3)
-        : (rng() < 0.85 - depth * 0.09 ? 1 + Math.floor(rng() * 3) : 0);
+      const kids =
+        depth === 1
+          ? 3 + Math.floor(rng() * 3)
+          : rng() < 0.85 - depth * 0.09
+            ? 1 + Math.floor(rng() * 3)
+            : 0;
       for (let k = 0; k < kids && nodes.length < MAX; k++) {
         const angle = rng() * Math.PI * 2;
         nodes.push({
@@ -817,7 +829,8 @@ function setupHist(t) {
     let pick = rng();
     let comp = mixture[mixture.length - 1];
     for (const c of mixture) {
-      if ((pick -= c.w) <= 0) {
+      pick -= c.w;
+      if (pick <= 0) {
         comp = c;
         break;
       }
@@ -826,7 +839,7 @@ function setupHist(t) {
     return comp.mu + comp.sigma * gauss;
   };
 
-  const pdf = (x) => {
+  const pdf = x => {
     let v = 0;
     for (const c of mixture) {
       const z = (x - c.mu) / c.sigma;
@@ -835,7 +848,7 @@ function setupHist(t) {
     return v;
   };
 
-  const frame = (time) => {
+  const frame = time => {
     const { w, h } = t;
 
     if (total >= CAP) {
@@ -867,7 +880,7 @@ function setupHist(t) {
     // True density, scaled to the same normalization as the tallest bin.
     ctx.beginPath();
     for (let x = 0; x <= w; x += 2) {
-      const expected = pdf(x / w) * (total / BINS) / Math.max(1, maxCount);
+      const expected = (pdf(x / w) * (total / BINS)) / Math.max(1, maxCount);
       const y = h - padBottom - Math.min(1.05, expected) * plotH;
       x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }

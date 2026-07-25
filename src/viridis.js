@@ -233,7 +233,7 @@ function makeColormap(name, data) {
     return table;
   }
 
-  const map = (t) => {
+  const map = t => {
     const T = bytes();
     const x = clamp01(t) * 255;
     const i = x | 0;
@@ -243,7 +243,7 @@ function makeColormap(name, data) {
     const r = Math.round(T[a] + (T[b] - T[a]) * f);
     const g = Math.round(T[a + 1] + (T[b + 1] - T[a + 1]) * f);
     const bl = Math.round(T[a + 2] + (T[b + 2] - T[a + 2]) * f);
-    return '#' + ((1 << 24) | (r << 16) | (g << 8) | bl).toString(16).slice(1);
+    return `#${((1 << 24) | (r << 16) | (g << 8) | bl).toString(16).slice(1)}`;
   };
 
   map.rgb = (t, out) => {
@@ -274,7 +274,7 @@ function makeColormap(name, data) {
     return o;
   };
 
-  map.css = (t) => {
+  map.css = t => {
     const [r, g, b] = map.rgb(t);
     return `rgb(${r}, ${g}, ${b})`;
   };
@@ -295,10 +295,9 @@ function makeColormap(name, data) {
       enumerable: true,
       get() {
         if (colors === null) {
-          colors = Object.freeze(Array.from(
-            { length: 256 },
-            (_, i) => '#' + data.slice(i * 6, i * 6 + 6),
-          ));
+          colors = Object.freeze(
+            Array.from({ length: 256 }, (_, i) => `#${data.slice(i * 6, i * 6 + 6)}`),
+          );
         }
         return colors;
       },
@@ -327,7 +326,14 @@ export const rocket = /* @__PURE__ */ makeColormap('rocket', ROCKET_DATA);
  * colormaps[userChoice](t).
  */
 export const colormaps = /* @__PURE__ */ Object.freeze({
-  viridis, magma, plasma, inferno, cividis, turbo, mako, rocket,
+  viridis,
+  magma,
+  plasma,
+  inferno,
+  cividis,
+  turbo,
+  mako,
+  rocket,
 });
 
 /**

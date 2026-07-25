@@ -11,8 +11,20 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import viridisDefault, {
-  viridis, magma, plasma, inferno, cividis, turbo, mako, rocket,
-  colormaps, rgb, rgbf, css, palette, colors,
+  viridis,
+  magma,
+  plasma,
+  inferno,
+  cividis,
+  turbo,
+  mako,
+  rocket,
+  colormaps,
+  rgb,
+  rgbf,
+  css,
+  palette,
+  colors,
 } from '../src/viridis.js';
 
 // Endpoints and the anchor-128 midpoint of each map, from the canonical data
@@ -102,10 +114,13 @@ test('rgb / rgbf / css agree', () => {
       for (let c = 0; c < 3; c++) {
         assert.ok(bytes[c] >= 0 && bytes[c] <= 255 && Number.isInteger(bytes[c]));
         assert.ok(floats[c] >= 0 && floats[c] <= 1);
-        assert.ok(Math.abs(floats[c] * 255 - bytes[c]) <= 0.5, `${map.name} channel ${c} at t=${t}`);
+        assert.ok(
+          Math.abs(floats[c] * 255 - bytes[c]) <= 0.5,
+          `${map.name} channel ${c} at t=${t}`,
+        );
       }
       assert.equal(map.css(t), `rgb(${bytes[0]}, ${bytes[1]}, ${bytes[2]})`);
-      const hex = '#' + bytes.map(v => v.toString(16).padStart(2, '0')).join('');
+      const hex = `#${bytes.map(v => v.toString(16).padStart(2, '0')).join('')}`;
       assert.equal(map(t), hex);
     }
   }
@@ -146,8 +161,11 @@ test('colors tables are frozen and well-formed', () => {
   }
 });
 
-const linear = v => (v /= 255) <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-const luminance = (hex) => {
+const linear = v => {
+  const s = v / 255;
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+};
+const luminance = hex => {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
